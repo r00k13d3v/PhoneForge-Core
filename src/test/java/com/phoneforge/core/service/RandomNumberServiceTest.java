@@ -1,25 +1,22 @@
 package com.phoneforge.core.service;
 
+import com.phoneforge.core.config.ProvinceSeedConfiguration;
+import com.phoneforge.core.repository.InMemoryProvinceRepository;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
 class RandomNumberServiceTest {
 
-    @Autowired
-    private RandomNumberService randomNumberService;
+    private final RandomNumberService service =
+            new RandomNumberService(new InMemoryProvinceRepository(new ProvinceSeedConfiguration().provinceSeed()));
 
     @Test
-    void shouldGenerateNumberForMadrid() {
-        RandomNumberService.GeneratedNumber generated = randomNumberService.generateForProvince("28");
+    void generatesNineDigitNumberWithProvincePrefix() {
+        var result = service.generateRandomNumber("15");
 
-        assertThat(generated.number()).hasSize(9);
-        assertThat(generated.prefix()).isIn(Set.of("910", "911", "810", "811"));
-        assertThat(generated.number()).startsWith(generated.prefix());
+        assertThat(result.number()).hasSize(9);
+        assertThat(result.number()).startsWithAny("981", "881");
+        assertThat(result.province().ineCode()).isEqualTo("15");
     }
 }

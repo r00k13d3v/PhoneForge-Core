@@ -1,17 +1,22 @@
 package com.phoneforge.core.web;
 
+import com.phoneforge.core.domain.Province;
+import com.phoneforge.core.service.ProvinceNotFoundException;
 import com.phoneforge.core.service.RandomNumberService;
 import com.phoneforge.core.web.dto.RandomNumberResponse;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
-@RequestMapping("/api/provinces")
-@Tag(name = "Números aleatorios", description = "Generación de números telefónicos por provincia")
+@RequestMapping("/api")
 public class RandomNumberController {
 
     private final RandomNumberService randomNumberService;
@@ -20,13 +25,19 @@ public class RandomNumberController {
         this.randomNumberService = randomNumberService;
     }
 
-    @GetMapping("/{ineCode}/random")
-    @Operation(summary = "Generar un número aleatorio para una provincia", description = "Usa los prefijos 9XX/8XX asociados al código INE proporcionado")
-    public RandomNumberResponse generate(@PathVariable String ineCode) {
-        RandomNumberService.GeneratedNumber generated = randomNumberService.generateForProvince(ineCode);
-        return RandomNumberResponse.builder()
-                .number(generated.number())
-                .prefix(generated.prefix())
-                .build();
+    @GetMapping("/provinces")
+    public List<Province> getProvinces() {
+        return randomNumberService.getProvinces();
+    }
+
+    @GetMapping("/numbers/random")
+    public RandomNumberResponse generateRandomNumber(
+            @RequestParam(value = "provinceCode", required = false) String provinceCode) {
+        return randomNumberService.generateRandomNumber(provinceCode);
+    }
+
+    @ExceptionHandler(ProvinceNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleProvinceNotFound(ProvinceNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 }

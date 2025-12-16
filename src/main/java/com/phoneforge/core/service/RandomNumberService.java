@@ -1,8 +1,8 @@
 package com.phoneforge.core.service;
 
-import com.phoneforge.core.domain.Prefix;
 import com.phoneforge.core.domain.Province;
-import com.phoneforge.core.repository.PrefixRepository;
+import com.phoneforge.core.repository.ProvinceRepository;
+import com.phoneforge.core.web.dto.RandomNumberResponse;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -11,30 +11,45 @@ import java.util.List;
 @Service
 public class RandomNumberService {
 
-    private final PrefixRepository prefixRepository;
-    private final ProvinceService provinceService;
-    private final SecureRandom random = new SecureRandom();
+    private static final int SPANISH_NUMBER_LENGTH = 9;
+    private final ProvinceRepository provinceRepository;
+    private final SecureRandom secureRandom = new SecureRandom();
 
-    public RandomNumberService(PrefixRepository prefixRepository, ProvinceService provinceService) {
-        this.prefixRepository = prefixRepository;
-        this.provinceService = provinceService;
+    public RandomNumberService(ProvinceRepository provinceRepository) {
+        this.provinceRepository = provinceRepository;
     }
 
-    public GeneratedNumber generateForProvince(String ineCode) {
-        Province province = provinceService.findByIneCode(ineCode);
-        List<Prefix> prefixes = prefixRepository.findByProvince_IneCode(ineCode);
+    public List<Province> getProvinces() {
+        return provinceRepository.findAll();
+    }
 
-        if (prefixes.isEmpty()) {
-            throw new IllegalStateException("No hay prefijos configurados para la provincia " + ineCode);
+    public RandomNumberResponse generateRandomNumber(String provinceCode) {
+        Province province = selectProvince(provinceCode);
+        String prefix = choosePrefix(province.prefixes());
+        String number = prefix + generateSuffix(prefix.length());
+        return new RandomNumberResponse(number, prefix, province);
+    }
+
+    private Province selectProvince(String provinceCode) {
+        if (provinceCode == null || provinceCode.isBlank()) {
+            List<Province> provinces = provinceRepository.findAll();
+            return provinces.get(secureRandom.nextInt(provinces.size()));
         }
 
-        Prefix selected = prefixes.get(random.nextInt(prefixes.size()));
-        String suffix = String.format("%06d", random.nextInt(1_000_000));
-
-        String fullNumber = selected.getValue() + suffix;
-        return new GeneratedNumber(fullNumber, selected.getValue(), province);
+        return provinceRepository.findByIneCode(provinceCode)
+                .orElseThrow(() -> new ProvinceNotFoundException(provinceCode));
     }
 
-    public record GeneratedNumber(String number, String prefix, Province province) {
+    private String choosePrefix(List<String> prefixes) {
+        return prefixes.get(secureRandom.nextInt(prefixes.size()));
+    }
+
+    private String generateSuffix(int prefixLength) {
+        int remainingDigits = SPANISH_NUMBER_LENGTH - prefixLength;
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < remainingDigits; i++) {
+            builder.append(secureRandom.nextInt(10));
+        }
+        return builder.toString();
     }
 }
